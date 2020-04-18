@@ -1,0 +1,12 @@
+[package]
+edition = "2018"
+name = "todotxt-cli"
+version = "0.1.0"
+description = "Ask more of your todo.txt file - cli binary"
+authors = ["Florent Nuttens"]
+license = "MIT"
+
+[dependencies]
+todotxt-lib = { path = "../todotxt-lib" }
+clap = { git = "https://github.com/clap-rs/clap/" }
+chrono = "0.4"
