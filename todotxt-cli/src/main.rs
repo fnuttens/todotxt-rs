@@ -1,5 +1,6 @@
 use chrono::NaiveDate;
 use clap::{crate_version, App, Arg, ArgMatches};
+use colored::*;
 use std::str::FromStr;
 use todotxt_lib;
 
@@ -63,7 +64,14 @@ fn add(matches: &ArgMatches) -> Result<(), String> {
         }
     };
     let insert_creation_date = !matches.is_present("no_creation_date");
-    todotxt_lib::add(todo, priority, creation_date, insert_creation_date)
+
+    let (task_id, task_entry) =
+        todotxt_lib::add(todo, priority, creation_date, insert_creation_date)?;
+
+    let task_id = format!("{}:", task_id);
+    println!("{} {}", task_id.yellow().bold(), task_entry);
+
+    Ok(())
 }
 
 fn match_alphabetic_char(value: &str) -> Result<char, &str> {

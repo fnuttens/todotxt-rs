@@ -12,23 +12,21 @@ pub fn add(
     priority: Option<char>,
     creation_date: Option<NaiveDate>,
     insert_creation_date: bool,
-) -> Result<(), String> {
+) -> Result<(usize, String), String> {
     let mut file = OpenOptions::new()
         .read(true)
         .append(true)
         .open(TODOTXT_PATH)
         .map_err(|e| e.to_string())?;
 
-    let new_todo = format_task(todo, priority, creation_date, insert_creation_date);
-    writeln!(&file, "{}", new_todo).map_err(|e| e.to_string())?;
+    let new_task = format_task(todo, priority, creation_date, insert_creation_date);
+    writeln!(&file, "{}", new_task).map_err(|e| e.to_string())?;
 
     file.seek(std::io::SeekFrom::Start(0))
         .map_err(|e| e.to_string())?;
 
-    let todo_id = BufReader::new(file).lines().count();
-    println!("{}: {}", todo_id, new_todo);
-
-    Ok(())
+    let task_id = BufReader::new(file).lines().count();
+    Ok((task_id, new_task))
 }
 
 fn format_task(

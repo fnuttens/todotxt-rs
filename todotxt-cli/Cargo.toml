@@ -10,3 +10,4 @@ license = "MIT"
 todotxt-lib = { path = "../todotxt-lib" }
 clap = { git = "https://github.com/clap-rs/clap/" }
 chrono = "0.4"
+colored = "1.9"
