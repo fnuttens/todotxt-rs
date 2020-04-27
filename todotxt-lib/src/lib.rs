@@ -1,3 +1,5 @@
+//! This crate is a collection of utilities to manage one's todo.txt file.
+
 mod config;
 
 use std::fs::OpenOptions;
@@ -7,6 +9,15 @@ use chrono::{NaiveDate, Utc};
 
 use config::TODOTXT_PATH;
 
+/// Adds a task to the list
+/// 
+/// The new task will be inserted at the bottom of todo.txt.
+/// In case of success, this function returns a tuple containing the task ID and its formatted string.
+/// 
+/// # Errors
+/// 
+/// - couldn't find nor open the file with read and write access
+/// - couldn't write to the file
 pub fn add(
     todo: &str,
     priority: Option<char>,
