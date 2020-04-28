@@ -38,13 +38,20 @@ fn main() -> Result<(), String> {
                         .help("Disable creation date for this task"),
                 ),
         )
+        .subcommand(
+            App::new("do").about("Mark a task as done").arg(
+                Arg::with_name("task-id")
+                    .help("Identifying number for the accomplished task")
+                    .required(true),
+            ),
+        )
         .get_matches();
 
-    if let Some(matches) = matches.subcommand_matches("add") {
-        return add(matches);
+    match matches.subcommand() {
+        ("add", Some(matches)) => add(matches),
+        ("do", Some(matches)) => mark_as_done(matches),
+        _ => Ok(()),
     }
-
-    Ok(())
 }
 
 fn add(matches: &ArgMatches) -> Result<(), String> {
@@ -72,6 +79,11 @@ fn add(matches: &ArgMatches) -> Result<(), String> {
     println!("{} {}", task_id.yellow().bold(), task_entry);
 
     Ok(())
+}
+
+fn mark_as_done(matches: &ArgMatches) -> Result<(), String> {
+    let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
+    todotxt_lib::mark_as_done(id)
 }
 
 fn match_alphabetic_char(value: &str) -> Result<char, &str> {

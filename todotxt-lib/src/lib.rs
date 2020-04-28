@@ -1,6 +1,6 @@
 //! This crate is a collection of utilities to manage one's todo.txt file.
 
-#![feature(with_options)]
+#![feature(with_options, try_find)]
 
 mod config;
 
@@ -42,6 +42,20 @@ pub fn add(
     Ok((task_id, new_task))
 }
 
+/// Marks a task as accomplished
+///
+/// A cross ('x') is inserted at the beginning of the task entry to mark it as done.
+///
+/// # Errors
+///
+/// - couldn't find task with given ID
+pub fn mark_as_done(id: usize) -> Result<(), String> {
+    let file = File::open(TODOTXT_PATH).map_err(|e| e.to_string())?;
+    let _fulfilled_task = locate_task(id, file)?;
+
+    todo!("Insert a 'x' at the beginning of the task")
+}
+
 fn format_task(
     todo: &str,
     priority: Option<char>,
@@ -68,9 +82,28 @@ fn format_task(
     task
 }
 
+// TODO: return byte offset along with task string
+fn locate_task<T: Read>(id: usize, data: T) -> Result<String, String> {
+    let reader = BufReader::new(data);
+
+    let mut line_nth: usize = 0;
+    let task_search_result = reader.lines().try_find(|line| {
+        line_nth += 1;
+        match line {
+            Ok(_) => Ok(line_nth == id),
+            Err(e) => Err(e.to_string()),
+        }
+    })?;
+
+    task_search_result
+        .ok_or(String::from("Unable to find task"))?
+        .map_err(|e| e.to_string())
+}
+
 #[cfg(test)]
 mod should {
     use super::*;
+    use std::io::Cursor;
 
     #[test]
     fn format_tasks_correctly() {
@@ -84,5 +117,13 @@ mod should {
                 false
             )
         );
+    }
+
+    #[test]
+    fn locate_tasks_correctly() {
+        let buf = Cursor::new(b"One\nTwo\nThree\n");
+        assert_eq!(Ok(String::from("Two")), locate_task(2, buf.clone()));
+        assert_eq!(Err(String::from("Unable to find task")), locate_task(4, buf.clone()));
+        assert_eq!(Err(String::from("Unable to find task")), locate_task(5, buf));
     }
 }
