@@ -5,7 +5,7 @@
 mod config;
 
 use std::fs::File;
-use std::io::{prelude::*, BufReader};
+use std::io::{prelude::*, BufReader, SeekFrom};
 
 use chrono::{NaiveDate, Utc};
 
@@ -35,8 +35,7 @@ pub fn add(
     let new_task = format_task(todo, priority, creation_date, insert_creation_date);
     writeln!(&file, "{}", new_task).map_err(|e| e.to_string())?;
 
-    file.seek(std::io::SeekFrom::Start(0))
-        .map_err(|e| e.to_string())?;
+    file.seek(SeekFrom::Start(0)).map_err(|e| e.to_string())?;
 
     let task_id = BufReader::new(file).lines().count();
     Ok((task_id, new_task))
@@ -49,11 +48,22 @@ pub fn add(
 /// # Errors
 ///
 /// - couldn't find task with given ID
+/// - task is already marked as done
 pub fn mark_as_done(id: usize) -> Result<(), String> {
     let file = File::open(TODOTXT_PATH).map_err(|e| e.to_string())?;
-    let _fulfilled_task = locate_task(id, file)?;
+    let (offset, task) = locate_task(id, file)?;
 
-    todo!("Insert a 'x' at the beginning of the task")
+    if task.starts_with('x') {
+        return Err(String::from("This task is already marked as done"));
+    }
+
+    let mut file = File::with_options()
+        .read(true)
+        .write(true)
+        .open(TODOTXT_PATH)
+        .map_err(|e| e.to_string())?;
+
+    insert_at("x ", offset, &mut file)
 }
 
 fn format_task(
@@ -109,6 +119,33 @@ fn locate_task<T: Read>(id: usize, data: T) -> Result<(usize, String), String> {
         .map_err(|e| e.to_string())
 }
 
+fn insert_at<T: Read + Seek + Write>(
+    text: &str,
+    position: usize,
+    data: &mut T,
+) -> Result<(), String> {
+    data.seek(SeekFrom::Start(position as u64))
+        .map_err(|e| e.to_string())?;
+
+    let mut remaining = Vec::new();
+    data.read_to_end(&mut remaining)
+        .map_err(|e| e.to_string())?;
+
+    data.seek(SeekFrom::Start(position as u64))
+        .map_err(|e| e.to_string())?;
+
+    let remaining: Vec<u8> = text
+        .as_bytes()
+        .iter()
+        .chain(remaining.as_slice().iter())
+        .map(|character| *character)
+        .collect();
+    data.write(remaining.as_slice())
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod should {
     use super::*;
@@ -142,5 +179,14 @@ mod should {
             Err(String::from("Unable to find task")),
             locate_task(6, buf)
         );
+    }
+
+    #[test]
+    fn insert_text_at_specified_location() {
+        let mut buf = Cursor::new(b"One\nTwo\n".to_vec());
+        assert_eq!(Ok(()), insert_at("Three", 8, &mut buf));
+        assert_eq!(b"One\nTwo\nThree", buf.get_ref().as_slice());
+        assert_eq!(Ok(()), insert_at("Two and a half\n", 8, &mut buf));
+        assert_eq!(b"One\nTwo\nTwo and a half\nThree", buf.get_ref().as_slice());
     }
 }

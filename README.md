@@ -18,7 +18,7 @@ Maybe more front-ends will come in the future, such as a desktop GUI, a webapp, 
 
 - Commands
     - [x] add task
-    - [ ] mark task as done
+    - [x] mark task as done
     - [ ] remove task
     - [ ] list tasks
     - [ ] prioritize task
