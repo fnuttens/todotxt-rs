@@ -82,21 +82,30 @@ fn format_task(
     task
 }
 
-// TODO: return byte offset along with task string
-fn locate_task<T: Read>(id: usize, data: T) -> Result<String, String> {
+fn locate_task<T: Read>(id: usize, data: T) -> Result<(usize, String), String> {
     let reader = BufReader::new(data);
+    let mut byte_offset = 0;
 
-    let mut line_nth: usize = 0;
-    let task_search_result = reader.lines().try_find(|line| {
-        line_nth += 1;
-        match line {
-            Ok(_) => Ok(line_nth == id),
+    let task_search_result = reader
+        .lines()
+        .enumerate()
+        .try_find(|(i, line)| match line {
+            Ok(line_value) => {
+                let line_nth = i + 1;
+                let is_task_located = line_nth == id;
+
+                if !is_task_located {
+                    byte_offset += line_value.as_bytes().len() + 1;
+                }
+
+                Ok(is_task_located)
+            }
             Err(e) => Err(e.to_string()),
-        }
-    })?;
+        })?;
 
-    task_search_result
-        .ok_or(String::from("Unable to find task"))?
+    let (_, located_task) = task_search_result.ok_or(String::from("Unable to find task"))?;
+    located_task
+        .map(|task| (byte_offset, task))
         .map_err(|e| e.to_string())
 }
 
@@ -121,9 +130,17 @@ mod should {
 
     #[test]
     fn locate_tasks_correctly() {
-        let buf = Cursor::new(b"One\nTwo\nThree\n");
-        assert_eq!(Ok(String::from("Two")), locate_task(2, buf.clone()));
-        assert_eq!(Err(String::from("Unable to find task")), locate_task(4, buf.clone()));
-        assert_eq!(Err(String::from("Unable to find task")), locate_task(5, buf));
+        let buf = Cursor::new(b"One\nTwo\nThree\nFour\n");
+        assert_eq!(Ok((0, String::from("One"))), locate_task(1, buf.clone()));
+        assert_eq!(Ok((8, String::from("Three"))), locate_task(3, buf.clone()));
+        assert_eq!(Ok((14, String::from("Four"))), locate_task(4, buf.clone()));
+        assert_eq!(
+            Err(String::from("Unable to find task")),
+            locate_task(5, buf.clone())
+        );
+        assert_eq!(
+            Err(String::from("Unable to find task")),
+            locate_task(6, buf)
+        );
     }
 }
