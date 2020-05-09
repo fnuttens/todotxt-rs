@@ -11,6 +11,8 @@ use chrono::{NaiveDate, Utc};
 
 use config::TODOTXT_PATH;
 
+const NEWLINE_BYTE: usize = 1;
+
 /// Adds a task to the list
 ///
 /// The new task will be inserted at the bottom of todo.txt.
@@ -105,7 +107,7 @@ fn locate_task<T: Read>(id: usize, data: T) -> Result<(usize, String), String> {
                 let is_task_located = line_nth == id;
 
                 if !is_task_located {
-                    byte_offset += line_value.as_bytes().len() + 1;
+                    byte_offset += line_value.as_bytes().len() + NEWLINE_BYTE;
                 }
 
                 Ok(is_task_located)
