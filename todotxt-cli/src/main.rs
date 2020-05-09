@@ -45,11 +45,19 @@ fn main() -> Result<(), String> {
                     .required(true),
             ),
         )
+        .subcommand(
+            App::new("rm").about("Remove a task").arg(
+                Arg::with_name("task-id")
+                    .help("Identifying number for the task to remove")
+                    .required(true),
+            ),
+        )
         .get_matches();
 
     match matches.subcommand() {
         ("add", Some(matches)) => add(matches),
         ("do", Some(matches)) => mark_as_done(matches),
+        ("rm", Some(matches)) => remove(matches),
         _ => Ok(()),
     }
 }
@@ -84,6 +92,11 @@ fn add(matches: &ArgMatches) -> Result<(), String> {
 fn mark_as_done(matches: &ArgMatches) -> Result<(), String> {
     let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
     todotxt_lib::mark_as_done(id)
+}
+
+fn remove(matches: &ArgMatches) -> Result<(), String> {
+    let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
+    todotxt_lib::remove(id)
 }
 
 fn match_alphabetic_char(value: &str) -> Result<char, &str> {

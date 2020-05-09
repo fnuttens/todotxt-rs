@@ -22,7 +22,7 @@ Maybe more front-ends will come in the future, such as a desktop GUI, a webapp, 
 Commands::
 * [x] add task
 * [x] mark task as done
-* [ ] remove task
+* [x] remove task
 * [ ] list tasks
 * [ ] prioritize task
 * [ ] deprioritize task

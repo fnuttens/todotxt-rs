@@ -68,6 +68,44 @@ pub fn mark_as_done(id: usize) -> Result<(), String> {
     insert_at("x ", offset, &mut file)
 }
 
+/// Removes a task from the list
+///
+/// # Errors
+///
+/// - couldn't find task with given ID
+pub fn remove(id: usize) -> Result<(), String> {
+    let mut file = File::with_options()
+        .read(true)
+        .write(true)
+        .open(TODOTXT_PATH)
+        .map_err(|e| e.to_string())?;
+    let file_clone = file.try_clone().map_err(|e| e.to_string())?;
+    let (target_offset, target) = locate_task(id, file_clone)?;
+
+    let remaining_tasks_minus_target = {
+        let next_task_offset = target_offset + target.len() + NEWLINE_BYTE;
+        file.seek(SeekFrom::Start(next_task_offset as u64))
+            .map_err(|e| e.to_string())?;
+
+        let mut remaining = Vec::new();
+        file.read_to_end(&mut remaining)
+            .map_err(|e| e.to_string())?;
+        remaining
+    };
+
+    file.seek(SeekFrom::Start(target_offset as u64))
+        .map_err(|e| e.to_string())?;
+
+    file.write(remaining_tasks_minus_target.as_slice())
+        .map_err(|e| e.to_string())?;
+
+    let final_file_length = target_offset + remaining_tasks_minus_target.len();
+    file.set_len(final_file_length as u64)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 fn format_task(
     todo: &str,
     priority: Option<char>,
