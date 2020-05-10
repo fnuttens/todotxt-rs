@@ -82,21 +82,23 @@ fn add(matches: &ArgMatches) -> Result<(), String> {
 
     let (task_id, task_entry) =
         todotxt_lib::add(todo, priority, creation_date, insert_creation_date)?;
-
-    let task_id = format!("{}:", task_id);
-    println!("{} {}", task_id.yellow().bold(), task_entry);
+    print_task(task_id, &task_entry);
 
     Ok(())
 }
 
 fn mark_as_done(matches: &ArgMatches) -> Result<(), String> {
     let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
-    todotxt_lib::mark_as_done(id)
+    todotxt_lib::mark_as_done(id)?;
+    print_task(id, "marked as done");
+    Ok(())
 }
 
 fn remove(matches: &ArgMatches) -> Result<(), String> {
     let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
-    todotxt_lib::remove(id)
+    todotxt_lib::remove(id)?;
+    print_task(id, "removed");
+    Ok(())
 }
 
 fn match_alphabetic_char(value: &str) -> Result<char, &str> {
@@ -116,6 +118,11 @@ fn match_alphabetic_char(value: &str) -> Result<char, &str> {
 
 fn match_iso8601_date(value: &str) -> Result<NaiveDate, &str> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d").map_err(|_| "Date must have YYYY-MM-DD format")
+}
+
+fn print_task(id: usize, message: &str) {
+    let id = format!("{}:", id);
+    println!("{} {}", id.yellow().bold(), message);
 }
 
 #[cfg(test)]
