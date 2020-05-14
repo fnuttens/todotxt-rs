@@ -52,12 +52,14 @@ fn main() -> Result<(), String> {
                     .required(true),
             ),
         )
+        .subcommand(App::new("archive").about("Move all completed tasks to done.txt"))
         .get_matches();
 
     match matches.subcommand() {
         ("add", Some(matches)) => add(matches),
         ("do", Some(matches)) => mark_as_done(matches),
         ("rm", Some(matches)) => remove(matches),
+        ("archive", Some(_)) => archive(),
         _ => Ok(()),
     }
 }
@@ -98,6 +100,12 @@ fn remove(matches: &ArgMatches) -> Result<(), String> {
     let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
     todotxt_lib::remove(id)?;
     print_task(id, "removed");
+    Ok(())
+}
+
+fn archive() -> Result<(), String> {
+    let nb_archived_tasks = todotxt_lib::archive()?;
+    println!("{} task(s) archived", nb_archived_tasks);
     Ok(())
 }
 

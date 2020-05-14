@@ -6,10 +6,11 @@ mod config;
 
 use std::fs::File;
 use std::io::{prelude::*, BufReader, SeekFrom};
+use std::vec::Vec;
 
 use chrono::{NaiveDate, Utc};
 
-use config::TODOTXT_PATH;
+use config::{DONETXT_PATH, TODOTXT_PATH};
 
 const NEWLINE_BYTE: usize = 1;
 
@@ -106,6 +107,45 @@ pub fn remove(id: usize) -> Result<(), String> {
     Ok(())
 }
 
+/// Moves completed tasks to the archive file (done.txt)
+///
+/// When the operation is completed, the function returns the number of moved tasks.
+pub fn archive() -> Result<usize, String> {
+    let tasks = {
+        let mut todo_file = File::open(TODOTXT_PATH).map_err(|e| e.to_string())?;
+        let mut tasks = String::new();
+        todo_file
+            .read_to_string(&mut tasks)
+            .map_err(|e| e.to_string())?;
+        tasks
+    };
+    let completed_tasks = locate_completed_tasks(&tasks);
+
+    let completed_tasks_str =
+        completed_tasks
+            .iter()
+            .fold(String::new(), |mut serialized, (_, task)| {
+                serialized.push_str(task);
+                serialized.push('\n');
+                serialized
+            });
+    let mut done_file = File::with_options()
+        .append(true)
+        .open(DONETXT_PATH)
+        .map_err(|e| e.to_string())?;
+    done_file
+        .write(completed_tasks_str.as_bytes())
+        .map_err(|e| e.to_string())?;
+
+    let completed_tasks_ids = completed_tasks.iter().map(|(id, _)| *id).collect();
+    let filtered_tasks = remove_tasks(completed_tasks_ids, &tasks)?;
+    let mut todo_file = File::create(TODOTXT_PATH).map_err(|e| e.to_string())?;
+    todo_file
+        .write(filtered_tasks.as_bytes())
+        .map_err(|e| e.to_string())?;
+    Ok(completed_tasks.len())
+}
+
 fn format_task(
     todo: &str,
     priority: Option<char>,
@@ -159,6 +199,18 @@ fn locate_task<T: Read>(id: usize, data: T) -> Result<(usize, String), String> {
         .map_err(|e| e.to_string())
 }
 
+fn locate_completed_tasks(tasks: &str) -> Vec<(usize, String)> {
+    tasks
+        .lines()
+        .enumerate()
+        .fold(Vec::new(), |mut completed_tasks, (i, task)| {
+            if task.to_ascii_lowercase().starts_with('x') {
+                completed_tasks.push((i + 1, task.to_string()));
+            }
+            completed_tasks
+        })
+}
+
 fn insert_at<T: Read + Seek + Write>(
     text: &str,
     position: usize,
@@ -174,16 +226,35 @@ fn insert_at<T: Read + Seek + Write>(
     data.seek(SeekFrom::Start(position as u64))
         .map_err(|e| e.to_string())?;
 
-    let remaining: Vec<u8> = text
+    let remaining = text
         .as_bytes()
         .iter()
         .chain(remaining.as_slice().iter())
         .map(|character| *character)
-        .collect();
+        .collect::<Vec<u8>>();
     data.write(remaining.as_slice())
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+fn remove_tasks(ids: Vec<usize>, tasks: &str) -> Result<String, String> {
+    let nb_tasks = tasks.lines().count();
+    if ids.iter().any(|id| *id > nb_tasks) {
+        return Err(String::from("Invalid id"));
+    }
+    let filtered_tasks =
+        tasks
+            .lines()
+            .enumerate()
+            .fold(String::new(), |mut filtered, (i, task)| {
+                if !ids.iter().any(|id| *id == i + 1) {
+                    filtered.push_str(task);
+                    filtered.push('\n');
+                }
+                filtered
+            });
+    Ok(filtered_tasks)
 }
 
 #[cfg(test)]
@@ -222,11 +293,40 @@ mod should {
     }
 
     #[test]
+    fn locate_each_completed_task() {
+        assert_eq!(
+            vec![
+                (1, String::from("x A")),
+                (3, String::from("x C")),
+                (7, String::from("x"))
+            ],
+            locate_completed_tasks("x A\nB x\nx C\n(x) D\n x E\nF\nx")
+        );
+        assert_eq!(
+            Vec::<(usize, String)>::new(),
+            locate_completed_tasks("A\nB\nC\n")
+        );
+    }
+
+    #[test]
     fn insert_text_at_specified_location() {
         let mut buf = Cursor::new(b"One\nTwo\n".to_vec());
         assert_eq!(Ok(()), insert_at("Three", 8, &mut buf));
         assert_eq!(b"One\nTwo\nThree", buf.get_ref().as_slice());
         assert_eq!(Ok(()), insert_at("Two and a half\n", 8, &mut buf));
         assert_eq!(b"One\nTwo\nTwo and a half\nThree", buf.get_ref().as_slice());
+    }
+
+    #[test]
+    fn remove_specified_tasks() {
+        const TASKS: &str = "T1\nT2\nT3\n";
+        assert_eq!(Ok(String::from("T2\nT3\n")), remove_tasks(vec![1], TASKS));
+        assert_eq!(Ok(String::from("T1\nT3\n")), remove_tasks(vec![2], TASKS));
+        assert_eq!(Ok(String::from("T1\nT2\n")), remove_tasks(vec![3], TASKS));
+        assert_eq!(Ok(String::from("")), remove_tasks(vec![1, 2, 3], TASKS));
+        assert_eq!(
+            Err(String::from("Invalid id")),
+            remove_tasks(vec![4], TASKS)
+        );
     }
 }

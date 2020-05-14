@@ -33,7 +33,7 @@ Commands::
 * [ ] list tasks
 * [ ] prioritize task
 * [ ] deprioritize task
-* [ ] archive tasks
+* [x] archive tasks
 * [ ] update task
 Other::
 * [ ] manage a serialized configuration
