@@ -53,20 +53,15 @@ pub fn add(
 /// - couldn't find task with given ID
 /// - task is already marked as done
 pub fn mark_as_done(id: usize) -> Result<(), String> {
-    let file = File::open(TODOTXT_PATH).map_err(|e| e.to_string())?;
-    let (offset, task) = locate_task(id, file)?;
+    let mut tasks = read_todo_file()?;
+    let (position, task_to_complete) = locate_task(id, &tasks)?;
 
-    if task.starts_with('x') {
+    if task_to_complete.to_ascii_lowercase().starts_with('x') {
         return Err(String::from("This task is already marked as done"));
     }
 
-    let mut file = File::with_options()
-        .read(true)
-        .write(true)
-        .open(TODOTXT_PATH)
-        .map_err(|e| e.to_string())?;
-
-    insert_at("x ", offset, &mut file)
+    tasks.insert_str(position, "x ");
+    overwrite_todo_file(&tasks)
 }
 
 /// Removes a task from the list
@@ -75,13 +70,15 @@ pub fn mark_as_done(id: usize) -> Result<(), String> {
 ///
 /// - couldn't find task with given ID
 pub fn remove(id: usize) -> Result<(), String> {
+    let tasks = read_todo_file()?;
+    let (target_offset, target) = locate_task(id, &tasks)?;
+
+    // TODO: switch to a file overwrite algorithm
     let mut file = File::with_options()
         .read(true)
         .write(true)
         .open(TODOTXT_PATH)
         .map_err(|e| e.to_string())?;
-    let file_clone = file.try_clone().map_err(|e| e.to_string())?;
-    let (target_offset, target) = locate_task(id, file_clone)?;
 
     let remaining_tasks_minus_target = {
         let next_task_offset = target_offset + target.len() + NEWLINE_BYTE;
@@ -111,14 +108,7 @@ pub fn remove(id: usize) -> Result<(), String> {
 ///
 /// When the operation is completed, the function returns the number of moved tasks.
 pub fn archive() -> Result<usize, String> {
-    let tasks = {
-        let mut todo_file = File::open(TODOTXT_PATH).map_err(|e| e.to_string())?;
-        let mut tasks = String::new();
-        todo_file
-            .read_to_string(&mut tasks)
-            .map_err(|e| e.to_string())?;
-        tasks
-    };
+    let tasks = read_todo_file()?;
     let completed_tasks = locate_completed_tasks(&tasks);
 
     let completed_tasks_str =
@@ -139,11 +129,25 @@ pub fn archive() -> Result<usize, String> {
 
     let completed_tasks_ids = completed_tasks.iter().map(|(id, _)| *id).collect();
     let filtered_tasks = remove_tasks(completed_tasks_ids, &tasks)?;
+    overwrite_todo_file(&filtered_tasks)?;
+    Ok(completed_tasks.len())
+}
+
+fn read_todo_file() -> Result<String, String> {
+    let mut todo_file = File::open(TODOTXT_PATH).map_err(|e| e.to_string())?;
+    let mut tasks = String::new();
+    todo_file
+        .read_to_string(&mut tasks)
+        .map_err(|e| e.to_string())?;
+    Ok(tasks)
+}
+
+fn overwrite_todo_file(tasks: &str) -> Result<(), String> {
     let mut todo_file = File::create(TODOTXT_PATH).map_err(|e| e.to_string())?;
     todo_file
-        .write(filtered_tasks.as_bytes())
+        .write(tasks.as_bytes())
         .map_err(|e| e.to_string())?;
-    Ok(completed_tasks.len())
+    Ok(())
 }
 
 fn format_task(
@@ -172,31 +176,25 @@ fn format_task(
     task
 }
 
-fn locate_task<T: Read>(id: usize, data: T) -> Result<(usize, String), String> {
-    let reader = BufReader::new(data);
-    let mut byte_offset = 0;
-
-    let task_search_result = reader
+fn locate_task(id: usize, tasks: &str) -> Result<(usize, String), String> {
+    let mut position = 0;
+    let (_, task) = tasks
         .lines()
         .enumerate()
-        .try_find(|(i, line)| match line {
-            Ok(line_value) => {
+        .find(|(i, line)| {
+            let is_task_located = {
                 let line_nth = i + 1;
-                let is_task_located = line_nth == id;
-
-                if !is_task_located {
-                    byte_offset += line_value.as_bytes().len() + NEWLINE_BYTE;
-                }
-
-                Ok(is_task_located)
+                line_nth == id
+            };
+            if is_task_located {
+                return true;
             }
-            Err(e) => Err(e.to_string()),
-        })?;
 
-    let (_, located_task) = task_search_result.ok_or(String::from("Unable to find task"))?;
-    located_task
-        .map(|task| (byte_offset, task))
-        .map_err(|e| e.to_string())
+            position += line.as_bytes().len() + NEWLINE_BYTE;
+            false
+        })
+        .ok_or(String::from("Unable to find the task"))?;
+    Ok((position, task.to_string()))
 }
 
 fn locate_completed_tasks(tasks: &str) -> Vec<(usize, String)> {
@@ -278,17 +276,23 @@ mod should {
 
     #[test]
     fn locate_tasks_correctly() {
-        let buf = Cursor::new(b"One\nTwo\nThree\nFour\n");
-        assert_eq!(Ok((0, String::from("One"))), locate_task(1, buf.clone()));
-        assert_eq!(Ok((8, String::from("Three"))), locate_task(3, buf.clone()));
-        assert_eq!(Ok((14, String::from("Four"))), locate_task(4, buf.clone()));
+        const TASKS: &str = "One\nTwo\nThree\nFour\n";
+        assert_eq!(Ok((0, String::from("One"))), locate_task(1, TASKS));
         assert_eq!(
-            Err(String::from("Unable to find task")),
-            locate_task(5, buf.clone())
+            Ok((8, String::from("Three"))),
+            locate_task(3, TASKS)
         );
         assert_eq!(
-            Err(String::from("Unable to find task")),
-            locate_task(6, buf)
+            Ok((14, String::from("Four"))),
+            locate_task(4, TASKS)
+        );
+        assert_eq!(
+            Err(String::from("Unable to find the task")),
+            locate_task(5, TASKS)
+        );
+        assert_eq!(
+            Err(String::from("Unable to find the task")),
+            locate_task(6, TASKS)
         );
     }
 
