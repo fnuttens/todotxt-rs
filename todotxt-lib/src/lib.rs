@@ -71,37 +71,8 @@ pub fn mark_as_done(id: usize) -> Result<(), String> {
 /// - couldn't find task with given ID
 pub fn remove(id: usize) -> Result<(), String> {
     let tasks = read_todo_file()?;
-    let (target_offset, target) = locate_task(id, &tasks)?;
-
-    // TODO: switch to a file overwrite algorithm
-    let mut file = File::with_options()
-        .read(true)
-        .write(true)
-        .open(TODOTXT_PATH)
-        .map_err(|e| e.to_string())?;
-
-    let remaining_tasks_minus_target = {
-        let next_task_offset = target_offset + target.len() + NEWLINE_BYTE;
-        file.seek(SeekFrom::Start(next_task_offset as u64))
-            .map_err(|e| e.to_string())?;
-
-        let mut remaining = Vec::new();
-        file.read_to_end(&mut remaining)
-            .map_err(|e| e.to_string())?;
-        remaining
-    };
-
-    file.seek(SeekFrom::Start(target_offset as u64))
-        .map_err(|e| e.to_string())?;
-
-    file.write(remaining_tasks_minus_target.as_slice())
-        .map_err(|e| e.to_string())?;
-
-    let final_file_length = target_offset + remaining_tasks_minus_target.len();
-    file.set_len(final_file_length as u64)
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
+    let tasks = remove_tasks(vec![id], &tasks)?;
+    overwrite_todo_file(&tasks)
 }
 
 /// Moves completed tasks to the archive file (done.txt)
@@ -209,33 +180,6 @@ fn locate_completed_tasks(tasks: &str) -> Vec<(usize, String)> {
         })
 }
 
-fn insert_at<T: Read + Seek + Write>(
-    text: &str,
-    position: usize,
-    data: &mut T,
-) -> Result<(), String> {
-    data.seek(SeekFrom::Start(position as u64))
-        .map_err(|e| e.to_string())?;
-
-    let mut remaining = Vec::new();
-    data.read_to_end(&mut remaining)
-        .map_err(|e| e.to_string())?;
-
-    data.seek(SeekFrom::Start(position as u64))
-        .map_err(|e| e.to_string())?;
-
-    let remaining = text
-        .as_bytes()
-        .iter()
-        .chain(remaining.as_slice().iter())
-        .map(|character| *character)
-        .collect::<Vec<u8>>();
-    data.write(remaining.as_slice())
-        .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
 fn remove_tasks(ids: Vec<usize>, tasks: &str) -> Result<String, String> {
     let nb_tasks = tasks.lines().count();
     if ids.iter().any(|id| *id > nb_tasks) {
@@ -258,7 +202,6 @@ fn remove_tasks(ids: Vec<usize>, tasks: &str) -> Result<String, String> {
 #[cfg(test)]
 mod should {
     use super::*;
-    use std::io::Cursor;
 
     #[test]
     fn format_tasks_correctly() {
@@ -278,14 +221,8 @@ mod should {
     fn locate_tasks_correctly() {
         const TASKS: &str = "One\nTwo\nThree\nFour\n";
         assert_eq!(Ok((0, String::from("One"))), locate_task(1, TASKS));
-        assert_eq!(
-            Ok((8, String::from("Three"))),
-            locate_task(3, TASKS)
-        );
-        assert_eq!(
-            Ok((14, String::from("Four"))),
-            locate_task(4, TASKS)
-        );
+        assert_eq!(Ok((8, String::from("Three"))), locate_task(3, TASKS));
+        assert_eq!(Ok((14, String::from("Four"))), locate_task(4, TASKS));
         assert_eq!(
             Err(String::from("Unable to find the task")),
             locate_task(5, TASKS)
@@ -310,15 +247,6 @@ mod should {
             Vec::<(usize, String)>::new(),
             locate_completed_tasks("A\nB\nC\n")
         );
-    }
-
-    #[test]
-    fn insert_text_at_specified_location() {
-        let mut buf = Cursor::new(b"One\nTwo\n".to_vec());
-        assert_eq!(Ok(()), insert_at("Three", 8, &mut buf));
-        assert_eq!(b"One\nTwo\nThree", buf.get_ref().as_slice());
-        assert_eq!(Ok(()), insert_at("Two and a half\n", 8, &mut buf));
-        assert_eq!(b"One\nTwo\nTwo and a half\nThree", buf.get_ref().as_slice());
     }
 
     #[test]
