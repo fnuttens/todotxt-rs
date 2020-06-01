@@ -16,11 +16,6 @@ const NEWLINE_BYTE: usize = 1;
 ///
 /// The new task will be inserted at the bottom of todo.txt.
 /// In case of success, this function returns a tuple containing the task ID and its formatted string.
-///
-/// # Errors
-///
-/// - couldn't find nor open the file with read and write access
-/// - couldn't write to the file
 pub fn add(
     todo: &str,
     priority: Option<char>,
