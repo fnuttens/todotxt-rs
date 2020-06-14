@@ -53,14 +53,14 @@ fn cmd() -> Command<'static> {
         )
         .subcommand(
             Command::new("do").about("Mark a task as done").arg(
-                Arg::new("task-id")
+                Arg::new("task_id")
                     .help("Identifying number for the accomplished task")
                     .required(true),
             ),
         )
         .subcommand(
             Command::new("rm").about("Remove a task").arg(
-                Arg::new("task-id")
+                Arg::new("task_id")
                     .help("Identifying number for the task to remove")
                     .required(true),
             ),
@@ -100,7 +100,7 @@ fn add(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
 
 fn mark_as_done(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
     let id = matches
-        .value_of_t("task-id")
+        .value_of_t("task_id")
         .unwrap_or_else(|error| cmd.error(ErrorKind::ValueValidation, error).exit());
     todotxt_lib::mark_as_done(id)?;
     print_task(id, "marked as done");
@@ -109,7 +109,7 @@ fn mark_as_done(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
 
 fn remove(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
     let id = matches
-        .value_of_t("task-id")
+        .value_of_t("task_id")
         .unwrap_or_else(|error| cmd.error(ErrorKind::ValueValidation, error).exit());
     todotxt_lib::remove(id)?;
     print_task(id, "removed");
