@@ -66,19 +66,15 @@ fn main() -> Result<(), String> {
 
 fn add(matches: &ArgMatches) -> Result<(), String> {
     let todo = matches.value_of("todo").unwrap();
-    let priority = {
-        if let Some(matched_value) = matches.value_of("priority") {
-            Some(match_alphabetic_char(matched_value)?)
-        } else {
-            None
-        }
+    let priority = if let Some(matched_value) = matches.value_of("priority") {
+        Some(match_alphabetic_char(matched_value)?)
+    } else {
+        None
     };
-    let creation_date = {
-        if let Some(matched_value) = matches.value_of("creation_date") {
-            Some(match_iso8601_date(matched_value)?)
-        } else {
-            None
-        }
+    let creation_date = if let Some(matched_value) = matches.value_of("creation_date") {
+        Some(match_iso8601_date(matched_value)?)
+    } else {
+        None
     };
     let insert_creation_date = !matches.is_present("no_creation_date");
 
