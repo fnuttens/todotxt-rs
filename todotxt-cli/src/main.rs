@@ -40,14 +40,14 @@ fn main() -> Result<(), String> {
         )
         .subcommand(
             App::new("do").about("Mark a task as done").arg(
-                Arg::with_name("task-id")
+                Arg::with_name("task_id")
                     .help("Identifying number for the accomplished task")
                     .required(true),
             ),
         )
         .subcommand(
             App::new("rm").about("Remove a task").arg(
-                Arg::with_name("task-id")
+                Arg::with_name("task_id")
                     .help("Identifying number for the task to remove")
                     .required(true),
             ),
@@ -90,14 +90,14 @@ fn add(matches: &ArgMatches) -> Result<(), String> {
 }
 
 fn mark_as_done(matches: &ArgMatches) -> Result<(), String> {
-    let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
+    let id: usize = matches.value_of_t("task_id").unwrap_or_else(|e| e.exit());
     todotxt_lib::mark_as_done(id)?;
     print_task(id, "marked as done");
     Ok(())
 }
 
 fn remove(matches: &ArgMatches) -> Result<(), String> {
-    let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
+    let id: usize = matches.value_of_t("task_id").unwrap_or_else(|e| e.exit());
     todotxt_lib::remove(id)?;
     print_task(id, "removed");
     Ok(())
