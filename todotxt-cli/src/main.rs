@@ -2,7 +2,16 @@ use chrono::NaiveDate;
 use clap::{crate_version, Arg, ArgMatches, Command, ErrorKind};
 use colored::*;
 use std::str::FromStr;
-use todotxt_lib;
+use todotxt_lib::{MatchFilter, SortFilter};
+
+const ALPHABETIC_FILTER: &str = "alphabetic";
+const COMPLETED_FILTER: &str = "completed";
+const COMPLETION_DATE_FILTER: &str = "completion";
+const CONTEXT_FILTER: &str = "context";
+const CREATION_DATE_FILTER: &str = "creation";
+const DUE_DATE_FILTER: &str = "due";
+const PRIORITY_FILTER: &str = "priority";
+const PROJECT_FILTER: &str = "project";
 
 fn main() -> Result<(), String> {
     let mut cmd = cmd();
@@ -13,6 +22,7 @@ fn main() -> Result<(), String> {
         Some(("do", matches)) => mark_as_done(matches, &mut cmd),
         Some(("rm", matches)) => remove(matches, &mut cmd),
         Some(("archive", _)) => archive(),
+        Some(("ls", matches)) => list(matches),
         _ => Ok(()),
     }
 }
@@ -66,6 +76,85 @@ fn cmd() -> Command<'static> {
             ),
         )
         .subcommand(Command::new("archive").about("Move all completed tasks to done.txt"))
+        .subcommand(
+            Command::new("ls")
+                .about("List tasks from todo.txt")
+                .arg(
+                    Arg::new("sort_by")
+                        .short('s')
+                        .long("sort")
+                        .value_name("FILTERS")
+                        .multiple_values(true)
+                        .possible_values(&[
+                            ALPHABETIC_FILTER,
+                            COMPLETED_FILTER,
+                            COMPLETION_DATE_FILTER,
+                            CONTEXT_FILTER,
+                            CREATION_DATE_FILTER,
+                            DUE_DATE_FILTER,
+                            PRIORITY_FILTER,
+                            PROJECT_FILTER,
+                        ])
+                        .help("Sorting filters to apply, in order of precedence")
+                        .next_line_help(true),
+                )
+                .arg(
+                    Arg::new("completed")
+                        .short('x')
+                        .long("completed")
+                        .conflicts_with("not_completed")
+                        .help("Completed tasks only"),
+                )
+                .arg(
+                    Arg::new("not_completed")
+                        .short('X')
+                        .long("not-completed")
+                        .conflicts_with("completed")
+                        .help("Unfinished tasks only"),
+                )
+                .arg(
+                    Arg::new("completion_date")
+                        .short('C')
+                        .long("completion")
+                        .value_name("YYYY-MM-DD")
+                        .help("Completion date to match"),
+                )
+                .arg(
+                    Arg::new("context")
+                        .short('o')
+                        .long("context")
+                        .value_name("CONTEXT")
+                        .help("Context to match"),
+                )
+                .arg(
+                    Arg::new("creation_date")
+                        .short('c')
+                        .long("creation")
+                        .value_name("YYYY-MM-DD")
+                        .help("Creation date to match"),
+                )
+                .arg(
+                    Arg::new("due_date")
+                        .short('d')
+                        .long("due")
+                        .value_name("YYYY-MM-DD")
+                        .help("Due date to match"),
+                )
+                .arg(
+                    Arg::new("priority")
+                        .short('P')
+                        .long("priority")
+                        .value_name("A-Z")
+                        .help("Priority to match"),
+                )
+                .arg(
+                    Arg::new("project")
+                        .short('p')
+                        .long("project")
+                        .value_name("PROJECT")
+                        .help("Project to match"),
+                ),
+        )
 }
 
 fn add(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
@@ -119,6 +208,72 @@ fn remove(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
 fn archive() -> Result<(), String> {
     let nb_archived_tasks = todotxt_lib::archive()?;
     println!("{} task(s) archived", nb_archived_tasks);
+    Ok(())
+}
+
+fn list(matches: &ArgMatches) -> Result<(), String> {
+    let match_filters = {
+        let mut filters = Vec::new();
+
+        if matches.is_present("completed") {
+            filters.push(MatchFilter::Completed(true));
+        } else if matches.is_present("not_completed") {
+            filters.push(MatchFilter::Completed(false));
+        }
+
+        if let Some(matched_value) = matches.value_of("completion_date") {
+            let date = match_iso8601_date(matched_value)?;
+            filters.push(MatchFilter::CompletionDate(date));
+        }
+
+        if let Some(matched_value) = matches.value_of("creation_date") {
+            let date = match_iso8601_date(matched_value)?;
+            filters.push(MatchFilter::CreationDate(date));
+        }
+
+        if let Some(matched_value) = matches.value_of("due_date") {
+            let date = match_iso8601_date(matched_value)?;
+            filters.push(MatchFilter::DueDate(date));
+        }
+
+        if let Some(context) = matches.value_of("context") {
+            filters.push(MatchFilter::Context(context));
+        }
+
+        if let Some(matched_value) = matches.value_of("priority") {
+            let p = match_alphabetic_char(matched_value)?;
+            filters.push(MatchFilter::Priority(p));
+        }
+
+        if let Some(project) = matches.value_of("project") {
+            filters.push(MatchFilter::Project(project));
+        }
+        filters
+    };
+
+    let sort_filters = {
+        let input_filters = matches
+            .values_of("sort_by")
+            .map_or(Vec::new(), |filters| filters.collect::<Vec<&str>>());
+
+        input_filters
+            .iter()
+            .map(|filter| match *filter {
+                ALPHABETIC_FILTER => SortFilter::Alphabetic,
+                COMPLETED_FILTER => SortFilter::Completed,
+                COMPLETION_DATE_FILTER => SortFilter::CompletionDate,
+                CONTEXT_FILTER => SortFilter::Context,
+                CREATION_DATE_FILTER => SortFilter::CreationDate,
+                DUE_DATE_FILTER => SortFilter::DueDate,
+                PRIORITY_FILTER => SortFilter::Priority,
+                PROJECT_FILTER => SortFilter::Project,
+                _ => SortFilter::CreationDate,
+            })
+            .collect::<Vec<SortFilter>>()
+    };
+
+    let tasks = todotxt_lib::list(&match_filters, &sort_filters)?;
+    tasks.iter().for_each(|(id, task)| print_task(*id, task));
     Ok(())
 }
 

@@ -12,6 +12,27 @@ use config::{DONETXT_PATH, TODOTXT_PATH};
 
 const NEWLINE_BYTE: usize = 1;
 
+pub enum SortFilter {
+    Alphabetic,
+    Completed,
+    CompletionDate,
+    Context,
+    CreationDate,
+    DueDate,
+    Priority,
+    Project,
+}
+
+pub enum MatchFilter<'a> {
+    Completed(bool),
+    CompletionDate(NaiveDate),
+    Context(&'a str),
+    CreationDate(NaiveDate),
+    DueDate(NaiveDate),
+    Priority(char),
+    Project(&'a str),
+}
+
 /// Adds a task to the list
 ///
 /// The new task will be inserted at the bottom of todo.txt.
@@ -95,6 +116,19 @@ pub fn archive() -> Result<usize, String> {
     let filtered_tasks = remove_tasks(completed_tasks_ids, &tasks)?;
     overwrite_todo_file(&filtered_tasks)?;
     Ok(completed_tasks.len())
+}
+
+/// Returns the tasks matching the filters
+pub fn list(
+    matching: &[MatchFilter],
+    sort_by: &[SortFilter],
+) -> Result<Vec<(usize, String)>, String> {
+    let tasks = read_todo_file()?;
+    let tasks = enumerate_tasks(&tasks);
+
+    let tasks = filter_tasks(&tasks, matching);
+    let tasks = sort_tasks(&tasks, sort_by);
+    Ok(tasks)
 }
 
 fn read_todo_file() -> Result<String, String> {
@@ -192,6 +226,22 @@ fn remove_tasks(ids: Vec<usize>, tasks: &str) -> Result<String, String> {
     Ok(filtered_tasks)
 }
 
+fn filter_tasks(tasks: &[(usize, String)], filters: &[MatchFilter]) -> Vec<(usize, String)> {
+    todo!()
+}
+
+fn sort_tasks(tasks: &[(usize, String)], filters: &[SortFilter]) -> Vec<(usize, String)> {
+    todo!()
+}
+
+fn enumerate_tasks(tasks: &str) -> Vec<(usize, String)> {
+    tasks
+        .lines()
+        .enumerate()
+        .map(|(i, task)| (i + 1, task.to_string()))
+        .collect::<Vec<(usize, String)>>()
+}
+
 #[cfg(test)]
 mod should {
     use super::*;
@@ -252,6 +302,111 @@ mod should {
         assert_eq!(
             Err(String::from("Invalid id")),
             remove_tasks(vec![4], TASKS)
+        );
+    }
+
+    #[test]
+    fn keep_tasks_matching_single_criteria() {
+        let tasks = [
+            (1, String::from("x T1")),
+            (2, String::from("x 2020-05-02 2020-05-01 T2")),
+            (3, String::from("T3 @context")),
+            (4, String::from("2020-05-02 T4")),
+            (5, String::from("T5 due:2020-05-02")),
+            (6, String::from("(A) T6")),
+            (7, String::from("T7 +project")),
+        ];
+
+        let completed_tasks = filter_tasks(&tasks, &[MatchFilter::Completed(true)]);
+        assert_eq!(
+            vec![
+                (1, String::from("x T1")),
+                (2, String::from("x 2020-05-02 2020-05-01 T2"))
+            ],
+            completed_tasks
+        );
+
+        let tasks_with_completed_date = filter_tasks(
+            &tasks,
+            &[MatchFilter::CompletionDate(
+                NaiveDate::parse_from_str("2020-05-02", "%Y-%m-%d").unwrap(),
+            )],
+        );
+        assert_eq!(
+            vec![(2, String::from("x 2020-05-02 2020-05-01 T2"))],
+            tasks_with_completed_date
+        );
+
+        let tasks_with_context = filter_tasks(&tasks, &[MatchFilter::Context("context")]);
+        assert_eq!(vec![(3, String::from("T3 @context"))], tasks_with_context);
+
+        let tasks_with_creation_date = filter_tasks(
+            &tasks,
+            &[MatchFilter::CreationDate(
+                NaiveDate::parse_from_str("2020-05-01", "%Y-%m-%d").unwrap(),
+            )],
+        );
+        assert_eq!(
+            vec![
+                (2, String::from("x 2020-05-02 2020-05-01 T2")),
+                (4, String::from("2020-05-02 T4"))
+            ],
+            tasks_with_creation_date
+        );
+
+        let tasks_with_due_date = filter_tasks(
+            &tasks,
+            &[MatchFilter::DueDate(
+                NaiveDate::parse_from_str("2020-05-02", "%Y-%m-%d").unwrap(),
+            )],
+        );
+        assert_eq!(
+            vec![(5, String::from("T5 due:2020-05-02"))],
+            tasks_with_due_date
+        );
+
+        let prioritized_tasks = filter_tasks(&tasks, &[MatchFilter::Priority('A')]);
+        assert_eq!(vec![(6, String::from("(A) T6"))], prioritized_tasks);
+
+        let tasks_with_project = filter_tasks(&tasks, &[MatchFilter::Project("project")]);
+        assert_eq!(vec![(7, String::from("T7 +project"))], tasks_with_project);
+    }
+
+    #[test]
+    fn keep_tasks_matching_criterias() {
+        let tasks = [(1, String::from("@c1 T1 +p1")), (2, String::from("T2 +p1"))];
+
+        let tasks_matching_c1_and_p1 = filter_tasks(
+            &tasks,
+            &[MatchFilter::Context("c1"), MatchFilter::Project("p1")],
+        );
+        assert_eq!(
+            vec![(1, String::from("@c1 T1 +p1"))],
+            tasks_matching_c1_and_p1
+        );
+    }
+
+    #[test]
+    fn sort_tasks_using_single_filter() {
+        todo!()
+    }
+
+    #[test]
+    fn sort_tasks_using_filters() {
+        todo!()
+    }
+
+    #[test]
+    fn output_numbered_tasks() {
+        const TASKS: &str = "1\n2\n3\n";
+        let numbered_tasks = enumerate_tasks(TASKS);
+        assert_eq!(
+            vec![
+                (1, String::from("1")),
+                (2, String::from("2")),
+                (3, String::from("3"))
+            ],
+            numbered_tasks
         );
     }
 }
