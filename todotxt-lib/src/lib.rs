@@ -1,10 +1,8 @@
 //! This crate is a collection of utilities to manage one's todo.txt file.
 
-#![feature(with_options, try_find)]
-
 mod config;
 
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{prelude::*, BufReader, SeekFrom};
 use std::vec::Vec;
 
@@ -29,7 +27,7 @@ pub fn add(
     creation_date: Option<NaiveDate>,
     insert_creation_date: bool,
 ) -> Result<(usize, String), String> {
-    let mut file = File::with_options()
+    let mut file = OpenOptions::new()
         .read(true)
         .append(true)
         .open(TODOTXT_PATH)
@@ -90,7 +88,7 @@ pub fn archive() -> Result<usize, String> {
                 serialized.push('\n');
                 serialized
             });
-    let mut done_file = File::with_options()
+    let mut done_file = OpenOptions::new()
         .append(true)
         .open(DONETXT_PATH)
         .map_err(|e| e.to_string())?;
