@@ -1,5 +1,5 @@
 [package]
-edition = "2018"
+edition = "2021"
 name = "todotxt-cli"
 version = "0.1.0"
 description = "Ask more of your todo.txt file - cli binary"
@@ -8,6 +8,6 @@ license = "MIT"
 
 [dependencies]
 todotxt-lib = { path = "../todotxt-lib" }
-clap = { git = "https://github.com/clap-rs/clap/" }
+clap = { version = "3.1.18", features = ["cargo"] }
 chrono = "0.4"
-colored = "1.9"
+colored = "2"

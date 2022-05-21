@@ -1,65 +1,65 @@
 use chrono::NaiveDate;
-use clap::{crate_version, App, Arg, ArgMatches};
+use clap::{crate_version, Arg, ArgMatches, Command};
 use colored::*;
 use std::str::FromStr;
 use todotxt_lib;
 
 fn main() -> Result<(), String> {
-    let matches = App::new("todotxt-rs")
+    let matches = Command::new("todotxt-rs")
         .version(crate_version!())
         .author("Florent Nuttens")
         .about("Ask more of your todo.txt file")
         .subcommand(
-            App::new("add")
+            Command::new("add")
                 .about("Add a new task to todo.txt")
                 .arg(
-                    Arg::with_name("todo")
+                    Arg::new("todo")
                         .help("Description of your task")
                         .required(true),
                 )
                 .arg(
-                    Arg::with_name("priority")
+                    Arg::new("priority")
                         .short('p')
                         .long("priority")
                         .value_name("A-Z")
                         .help("Priority of your task"),
                 )
                 .arg(
-                    Arg::with_name("creation_date")
+                    Arg::new("creation_date")
                         .short('c')
                         .long("creation-date")
                         .value_name("YYYY-MM-DD")
                         .help("Creation date for this task"),
                 )
                 .arg(
-                    Arg::with_name("no_creation_date")
+                    Arg::new("no_creation_date")
                         .long("no-creation-date")
                         .conflicts_with("creation_date")
                         .help("Disable creation date for this task"),
                 ),
         )
         .subcommand(
-            App::new("do").about("Mark a task as done").arg(
-                Arg::with_name("task-id")
+            Command::new("do").about("Mark a task as done").arg(
+                Arg::new("task-id")
                     .help("Identifying number for the accomplished task")
                     .required(true),
             ),
         )
         .subcommand(
-            App::new("rm").about("Remove a task").arg(
-                Arg::with_name("task-id")
+            Command::new("rm").about("Remove a task").arg(
+                Arg::new("task-id")
                     .help("Identifying number for the task to remove")
                     .required(true),
             ),
         )
-        .subcommand(App::new("archive").about("Move all completed tasks to done.txt"))
+        .subcommand(Command::new("archive").about("Move all completed tasks to done.txt"))
         .get_matches();
 
     match matches.subcommand() {
-        ("add", Some(matches)) => add(matches),
-        ("do", Some(matches)) => mark_as_done(matches),
-        ("rm", Some(matches)) => remove(matches),
-        ("archive", Some(_)) => archive(),
+        Some(("add", matches)) => add(matches),
+        Some(("do", matches)) => mark_as_done(matches),
+        Some(("rm", matches)) => remove(matches),
+        Some(("archive", _)) => archive(),
         _ => Ok(()),
     }
 }
