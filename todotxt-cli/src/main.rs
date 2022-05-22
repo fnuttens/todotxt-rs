@@ -1,11 +1,24 @@
 use chrono::NaiveDate;
-use clap::{crate_version, Arg, ArgMatches, Command};
+use clap::{crate_version, Arg, ArgMatches, Command, ErrorKind};
 use colored::*;
 use std::str::FromStr;
 use todotxt_lib;
 
 fn main() -> Result<(), String> {
-    let matches = Command::new("todotxt-rs")
+    let mut cmd = cmd();
+    let matches = cmd.get_matches_mut();
+
+    match matches.subcommand() {
+        Some(("add", matches)) => add(matches, &mut cmd),
+        Some(("do", matches)) => mark_as_done(matches, &mut cmd),
+        Some(("rm", matches)) => remove(matches, &mut cmd),
+        Some(("archive", _)) => archive(),
+        _ => Ok(()),
+    }
+}
+
+fn cmd() -> Command<'static> {
+    Command::new("todotxt-rs")
         .version(crate_version!())
         .author("Florent Nuttens")
         .about("Ask more of your todo.txt file")
@@ -53,33 +66,29 @@ fn main() -> Result<(), String> {
             ),
         )
         .subcommand(Command::new("archive").about("Move all completed tasks to done.txt"))
-        .get_matches();
-
-    match matches.subcommand() {
-        Some(("add", matches)) => add(matches),
-        Some(("do", matches)) => mark_as_done(matches),
-        Some(("rm", matches)) => remove(matches),
-        Some(("archive", _)) => archive(),
-        _ => Ok(()),
-    }
 }
 
-fn add(matches: &ArgMatches) -> Result<(), String> {
+fn add(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
     let todo = matches.value_of("todo").unwrap();
-    let priority = {
-        if let Some(matched_value) = matches.value_of("priority") {
-            Some(match_alphabetic_char(matched_value)?)
-        } else {
-            None
-        }
+
+    let priority = if let Some(matched_value) = matches.value_of("priority") {
+        match_alphabetic_char(matched_value).map_or_else(
+            |error| cmd.error(ErrorKind::ValueValidation, error).exit(),
+            |letter| Some(letter),
+        )
+    } else {
+        None
     };
-    let creation_date = {
-        if let Some(matched_value) = matches.value_of("creation_date") {
-            Some(match_iso8601_date(matched_value)?)
-        } else {
-            None
-        }
+
+    let creation_date = if let Some(matched_value) = matches.value_of("creation_date") {
+        match_iso8601_date(matched_value).map_or_else(
+            |error| cmd.error(ErrorKind::ValueValidation, error).exit(),
+            |date| Some(date),
+        )
+    } else {
+        None
     };
+
     let insert_creation_date = !matches.is_present("no_creation_date");
 
     let (task_id, task_entry) =
@@ -89,15 +98,19 @@ fn add(matches: &ArgMatches) -> Result<(), String> {
     Ok(())
 }
 
-fn mark_as_done(matches: &ArgMatches) -> Result<(), String> {
-    let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
+fn mark_as_done(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
+    let id = matches
+        .value_of_t("task-id")
+        .unwrap_or_else(|error| cmd.error(ErrorKind::ValueValidation, error).exit());
     todotxt_lib::mark_as_done(id)?;
     print_task(id, "marked as done");
     Ok(())
 }
 
-fn remove(matches: &ArgMatches) -> Result<(), String> {
-    let id: usize = matches.value_of_t("task-id").unwrap_or_else(|e| e.exit());
+fn remove(matches: &ArgMatches, cmd: &mut Command) -> Result<(), String> {
+    let id = matches
+        .value_of_t("task-id")
+        .unwrap_or_else(|error| cmd.error(ErrorKind::ValueValidation, error).exit());
     todotxt_lib::remove(id)?;
     print_task(id, "removed");
     Ok(())
@@ -136,6 +149,11 @@ fn print_task(id: usize, message: &str) {
 #[cfg(test)]
 mod should {
     use super::*;
+
+    #[test]
+    fn verify_app() {
+        cmd().debug_assert();
+    }
 
     #[test]
     fn accept_valid_priority() {
