@@ -2,12 +2,12 @@
 edition = "2021"
 name = "todotxt-cli"
 version = "0.1.0"
-description = "Ask more of your todo.txt file - cli binary"
+description = "Ask more of your todo.txt file - CLI binary"
 authors = ["Florent Nuttens"]
 license = "MIT"
 
 [dependencies]
 todotxt-lib = { path = "../todotxt-lib" }
-clap = { version = "3.1.18", features = ["cargo"] }
+clap = { version = "3", features = ["cargo"] }
 chrono = "0.4"
 colored = "2"
