@@ -136,7 +136,7 @@ fn format_task(
         let fmt_creation_date = format!("{} ", forced_creation_date);
         task.push_str(fmt_creation_date.as_str());
     } else if insert_creation_date {
-        let today = Utc::today();
+        let today = Utc::now();
         let fmt_creation_date = format!("{} ", today.format("%Y-%m-%d"));
         task.push_str(fmt_creation_date.as_str());
     }
