@@ -11,3 +11,6 @@ todotxt-lib = { path = "../todotxt-lib" }
 clap = { version = "3", features = ["cargo"] }
 chrono = "0.4"
 colored = "2"
+
+[dev-dependencies]
+trycmd = "0.14"

@@ -1,3 +1,0 @@
-= `todotxt-cli`
-
-CLI crate. Powered by https://github.com/clap-rs/clap[clap].
