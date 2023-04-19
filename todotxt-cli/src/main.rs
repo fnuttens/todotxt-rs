@@ -1,5 +1,5 @@
 use chrono::NaiveDate;
-use clap::{crate_version, Arg, ArgMatches, Command, ErrorKind};
+use clap::{crate_version, Arg, ArgAction, ArgMatches, Command, ErrorKind};
 use colored::*;
 use std::str::FromStr;
 use todotxt_lib;
@@ -27,11 +27,13 @@ fn cmd() -> Command<'static> {
                 .about("Add a new task to todo.txt")
                 .arg(
                     Arg::new("todo")
+                        .action(ArgAction::Set)
                         .help("Description of your task")
                         .required(true),
                 )
                 .arg(
                     Arg::new("priority")
+                        .action(ArgAction::Set)
                         .short('p')
                         .long("priority")
                         .value_name("A-Z")
@@ -39,6 +41,7 @@ fn cmd() -> Command<'static> {
                 )
                 .arg(
                     Arg::new("creation_date")
+                        .action(ArgAction::Set)
                         .short('c')
                         .long("creation-date")
                         .value_name("YYYY-MM-DD")
@@ -46,6 +49,7 @@ fn cmd() -> Command<'static> {
                 )
                 .arg(
                     Arg::new("no_creation_date")
+                        .action(ArgAction::SetTrue)
                         .long("no-creation-date")
                         .conflicts_with("creation_date")
                         .help("Disable creation date for this task"),
@@ -54,6 +58,7 @@ fn cmd() -> Command<'static> {
         .subcommand(
             Command::new("do").about("Mark a task as done").arg(
                 Arg::new("task-id")
+                    .action(ArgAction::Set)
                     .help("Identifying number for the accomplished task")
                     .required(true),
             ),
@@ -61,6 +66,7 @@ fn cmd() -> Command<'static> {
         .subcommand(
             Command::new("rm").about("Remove a task").arg(
                 Arg::new("task-id")
+                    .action(ArgAction::Set)
                     .help("Identifying number for the task to remove")
                     .required(true),
             ),
