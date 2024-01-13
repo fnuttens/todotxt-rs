@@ -1,5 +1,3 @@
 [workspace]
-members = [
-    "todotxt-cli",
-    "todotxt-lib",
-]
+members = ["todotxt-cli", "todotxt-lib"]
+resolver = "2"
