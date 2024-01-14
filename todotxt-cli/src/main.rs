@@ -1,5 +1,5 @@
 use chrono::NaiveDate;
-use clap::{crate_version, value_parser, Arg, ArgAction, ArgMatches, Command, ErrorKind};
+use clap::{crate_version, error::ErrorKind, value_parser, Arg, ArgAction, ArgMatches, Command};
 use colored::*;
 use std::str::FromStr;
 use todotxt_lib;
@@ -17,7 +17,7 @@ fn main() -> Result<(), String> {
     }
 }
 
-fn cmd() -> Command<'static> {
+fn cmd() -> Command {
     Command::new("todotxt-rs")
         .version(crate_version!())
         .author("Florent Nuttens")

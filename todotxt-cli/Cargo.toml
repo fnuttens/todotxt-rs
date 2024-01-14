@@ -8,7 +8,7 @@ license = "MIT"
 
 [dependencies]
 todotxt-lib = { path = "../todotxt-lib" }
-clap = { version = "3", features = ["cargo"] }
+clap = { version = "4", features = ["cargo"] }
 chrono = "0.4"
 colored = "2"
 
