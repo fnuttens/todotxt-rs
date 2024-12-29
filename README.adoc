@@ -12,7 +12,7 @@ ____
 Ask more of your http://todotxt.org/[todo.txt] file
 ____
 
-WARNING: This software is currently under development, it is not ready for everyday usage (yet)
+WARNING: This project is now archived. The todo.txt markup has been unmaintained for a few years now, and I believe it deserves https://github.com/todotxt/todo.txt/discussions/45[a few additions] to become really useful (for my taste anyway). If I am to work on a similar software again, I will also change the technical approach and rely on a parser combinator such as https://github.com/rust-bakery/nom[nom].
 
 == What it is about
 
